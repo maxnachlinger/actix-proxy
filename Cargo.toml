@@ -1,0 +1,11 @@
+[package]
+name = "actix-proxy"
+version = "0.1.0"
+authors = ["Max Nachlinger <max.nachlinger@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+actix-web = "3.3.2"
+config = "0.10.1"
+serde = "1.0.123"
+url = "2.2.0"
