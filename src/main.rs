@@ -12,7 +12,7 @@ async fn forward(
     body: web::Bytes,
     url: web::Data<Url>,
     client: web::Data<Client>,
-    allowlist: web::Data<AllowListOptimized>,
+    allow_list: web::Data<AllowListOptimized>,
 ) -> Result<HttpResponse, Error> {
     let mut new_url = url.get_ref().clone();
     new_url.set_path(req.uri().path());
@@ -24,7 +24,7 @@ async fn forward(
 
     // add allowed headers
     for (header_name, header_value) in req.headers().iter().filter(|(header_name, _)| {
-        allowlist
+        allow_list
             .header_names
             .contains_key(&header_name.to_string())
     }) {
@@ -32,12 +32,15 @@ async fn forward(
     }
 
     // add allowed cookies
-    for cookie in req
-        .cookies()?
-        .iter()
-        .filter(|c| allowlist.cookie_names.contains_key(&String::from(c.name())))
-    {
-        forwarded_req = forwarded_req.cookie(cookie.clone());
+    let cookies = req.cookies();
+    if cookies.is_ok() {
+        for cookie in req.cookies()?.iter().filter(|c| {
+            allow_list
+                .cookie_names
+                .contains_key(&String::from(c.name()))
+        }) {
+            forwarded_req = forwarded_req.cookie(cookie.clone());
+        }
     }
 
     let mut res = forwarded_req.send_body(body).await.map_err(Error::from)?;
@@ -60,28 +63,23 @@ pub struct AllowListOptimized {
 }
 
 pub fn optimize_allow_list(allow_list: AllowList) -> AllowListOptimized {
-    let header_names: HashMap<String, bool> = allow_list
-        .header_names
-        .into_iter()
-        .map(|name| (name, true))
-        .collect();
-
-    let cookie_names: HashMap<String, bool> = allow_list
-        .cookie_names
-        .into_iter()
-        .map(|name| (name, true))
-        .collect();
-
     AllowListOptimized {
-        cookie_names,
-        header_names,
+        cookie_names: allow_list
+            .cookie_names
+            .into_iter()
+            .map(|name| (name, true))
+            .collect(),
+        header_names: allow_list
+            .header_names
+            .into_iter()
+            .map(|name| (name, true))
+            .collect(),
     }
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let settings = Settings::new().expect("Could not read settings");
-    let listen_address = settings.app.clone().listen_address;
 
     let forward_url = Url::parse(&format!(
         "http://{}",
@@ -93,7 +91,7 @@ async fn main() -> std::io::Result<()> {
     ))
     .unwrap();
 
-    let optimized_allow_list = optimize_allow_list(settings.allowlist);
+    let optimized_allow_list = optimize_allow_list(settings.allow_list);
 
     HttpServer::new(move || {
         App::new()
@@ -103,7 +101,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             .default_service(web::route().to(forward))
     })
-    .bind(listen_address)?
+    .bind(settings.app.listen_address)?
     .system_exit()
     .run()
     .await

@@ -17,7 +17,7 @@ pub struct AllowList {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Settings {
     pub app: AppOptions,
-    pub allowlist: AllowList,
+    pub allow_list: AllowList,
 }
 
 impl Settings {
