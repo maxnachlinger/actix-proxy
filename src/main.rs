@@ -1,8 +1,10 @@
 use crate::settings::{AllowList, Settings};
 use actix_web::client::Client;
 use actix_web::{middleware, web, App, Error, HttpMessage, HttpRequest, HttpResponse, HttpServer};
+use std::collections::HashMap;
 use std::net::ToSocketAddrs;
 use url::Url;
+
 mod settings;
 
 async fn forward(
@@ -10,7 +12,7 @@ async fn forward(
     body: web::Bytes,
     url: web::Data<Url>,
     client: web::Data<Client>,
-    allowlist: web::Data<AllowList>,
+    allowlist: web::Data<AllowListOptimized>,
 ) -> Result<HttpResponse, Error> {
     let mut new_url = url.get_ref().clone();
     new_url.set_path(req.uri().path());
@@ -21,11 +23,11 @@ async fn forward(
         .no_decompress();
 
     // add allowed headers
-    for (header_name, header_value) in req
-        .headers()
-        .iter()
-        .filter(|(header_name, _)| allowlist.header_names.contains(&header_name.to_string()))
-    {
+    for (header_name, header_value) in req.headers().iter().filter(|(header_name, _)| {
+        allowlist
+            .header_names
+            .contains_key(&header_name.to_string())
+    }) {
         forwarded_req = forwarded_req.header(header_name.clone(), header_value.clone());
     }
 
@@ -33,7 +35,7 @@ async fn forward(
     for cookie in req
         .cookies()?
         .iter()
-        .filter(|c| allowlist.cookie_names.contains(&String::from(c.name())))
+        .filter(|c| allowlist.cookie_names.contains_key(&String::from(c.name())))
     {
         forwarded_req = forwarded_req.cookie(cookie.clone());
     }
@@ -51,6 +53,31 @@ async fn forward(
     Ok(client_resp.body(res.body().await?))
 }
 
+#[derive(Clone)]
+pub struct AllowListOptimized {
+    pub header_names: HashMap<String, bool>,
+    pub cookie_names: HashMap<String, bool>,
+}
+
+pub fn optimize_allow_list(allow_list: AllowList) -> AllowListOptimized {
+    let header_names: HashMap<String, bool> = allow_list
+        .header_names
+        .into_iter()
+        .map(|name| (name, true))
+        .collect();
+
+    let cookie_names: HashMap<String, bool> = allow_list
+        .cookie_names
+        .into_iter()
+        .map(|name| (name, true))
+        .collect();
+
+    AllowListOptimized {
+        cookie_names,
+        header_names,
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let settings = Settings::new().expect("Could not read settings");
@@ -66,11 +93,13 @@ async fn main() -> std::io::Result<()> {
     ))
     .unwrap();
 
+    let optimized_allow_list = optimize_allow_list(settings.allowlist);
+
     HttpServer::new(move || {
         App::new()
             .data(Client::new())
             .data(forward_url.clone())
-            .data(settings.allowlist.clone())
+            .data(optimized_allow_list.clone())
             .wrap(middleware::Logger::default())
             .default_service(web::route().to(forward))
     })
