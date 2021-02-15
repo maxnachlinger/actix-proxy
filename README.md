@@ -19,7 +19,7 @@ You can run the little test target NodeJS HTTP server as well via:
 ```bash
 node ./resources/server.js
 ```
-This server runs on 8000
+This server runs on 8080
 
 - run lint:
 ```bash
