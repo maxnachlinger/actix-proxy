@@ -93,16 +93,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "actix-proxy"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "config",
- "serde 1.0.123",
- "url",
-]
-
-[[package]]
 name = "actix-router"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -559,6 +549,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "filtering_proxy"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "config",
+ "serde 1.0.123",
+ "url",
 ]
 
 [[package]]

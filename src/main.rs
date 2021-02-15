@@ -1,6 +1,6 @@
 use crate::settings::{AllowList, Settings};
 use actix_web::client::Client;
-use actix_web::{middleware, web, App, Error, HttpMessage, HttpRequest, HttpResponse, HttpServer};
+use actix_web::{web, App, Error, HttpMessage, HttpRequest, HttpResponse, HttpServer};
 use std::collections::HashMap;
 use std::net::ToSocketAddrs;
 use url::Url;
@@ -43,7 +43,7 @@ async fn forward(
         }
     }
 
-    let mut res = forwarded_req.send_body(body).await.map_err(Error::from)?;
+    let res = forwarded_req.send_body(body).await.map_err(Error::from)?;
 
     let mut client_resp = HttpResponse::build(res.status());
 
@@ -53,7 +53,7 @@ async fn forward(
         client_resp.header(header_name.clone(), header_value.clone());
     }
 
-    Ok(client_resp.body(res.body().await?))
+    Ok(client_resp.streaming(res))
 }
 
 #[derive(Clone)]
@@ -98,7 +98,6 @@ async fn main() -> std::io::Result<()> {
             .data(Client::new())
             .data(forward_url.clone())
             .data(optimized_allow_list.clone())
-            .wrap(middleware::Logger::default())
             .default_service(web::route().to(forward))
     })
     .bind(settings.app.listen_address)?

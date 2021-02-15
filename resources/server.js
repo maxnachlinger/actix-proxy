@@ -1,7 +1,8 @@
 const http = require('http');
 
 http.createServer((req, res) => {
-  res.writeHead(200);
   console.log(req.headers);
-  res.end('OK');
+
+  res.writeHead(200, {'content-type': 'application/json'});
+  res.end(JSON.stringify({ message: 'test' }));
 }).listen(8000);
