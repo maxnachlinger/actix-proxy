@@ -30,4 +30,3 @@ cargo clippy
 ```bash
 cargo build --release
 ```
-
