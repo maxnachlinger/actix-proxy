@@ -1,7 +1,0 @@
-[app]
-listen_address = "0.0.0.0:8080"
-forward_address = "0.0.0.0:8000"
-
-[allow_list]
-header_names = ["content-type"]
-cookie_names = ["fun"]

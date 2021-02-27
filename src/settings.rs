@@ -1,6 +1,5 @@
 use config::{Config, ConfigError, File};
 use serde::Deserialize;
-use std::env;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AppOptions {
@@ -23,12 +22,8 @@ pub struct Settings {
 impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
         let mut settings = Config::new();
-        let env = env::var("ENVIRONMENT").unwrap_or_else(|_| "stage".into());
-
-        let config_path = format!("config/{}/config.toml", env);
-
+        let config_path = "config/config.toml";
         settings.merge(File::with_name(&config_path).required(true))?;
-        // freezes settings
         settings.try_into()
     }
 }
